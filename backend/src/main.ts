@@ -5,6 +5,7 @@ import {
 } from '@nestjs/platform-fastify';
 import { ValidationPipe } from '@nestjs/common';
 import { AppModule } from './app.module';
+import fastifyCookie from '@fastify/cookie';
 import dotenv from 'dotenv';
 dotenv.config();
 
@@ -16,6 +17,8 @@ async function bootstrap() {
     new FastifyAdapter(),
   );
 
+  app.setGlobalPrefix('api/v1');
+
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,       
@@ -23,6 +26,10 @@ async function bootstrap() {
       transform: true,       
     }),
   );
+
+  await app.register(fastifyCookie, {
+    secret: process.env.COOKIE_SECRET, 
+  });
 
   await app.listen(PORT, '0.0.0.0'); 
   console.log(`Application is running on: ${await app.getUrl()}`);

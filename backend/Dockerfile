@@ -7,16 +7,15 @@ RUN apk add --no-cache libc6-compat
 WORKDIR /usr/src/app
 
 # Najskôr package súbory - toto je dôležité pre cacheovanie
+# Najskôr package súbory a Prisma schéma
 COPY package*.json ./
+COPY prisma ./prisma/
 
 # Inštalujeme závislosti (v kontajneri)
 RUN npm install
 
 # Skopírujeme zvyšok zdrojového kódu
 COPY . .
-
-# Vygenerujeme Prisma klienta (toto budeš potrebovať hneď ako pridáš Prismu)
-# RUN npx prisma generate 
 
 # Port musí súhlasiť s tým, čo máš v docker-compose
 EXPOSE 5200
