@@ -1,0 +1,111 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  url      = env("DATABASE_URL")
+  provider = "postgresql"
+}
+
+enum UserRole {
+  OWNER
+  ADMIN
+  MEMBER
+  VIEWER
+}
+
+model User {
+  id       String  @id @default(cuid(2))
+  email    String  @unique
+  password String
+  name     String?
+  roleId   String
+  role     Role    @relation(fields: [roleId], references: [id])  
+
+  tokenVersion Int @default(1)
+  createdAt DateTime @default(now())
+  deletedAt   DateTime?
+
+  vaultItems VaultItem[]  
+  refreshTokens RefreshToken[]
+
+  @@index([roleId])
+}
+
+model Role {
+  id    String @id @default(cuid(2))
+  name  String @unique
+  users User[]
+}
+
+enum ItemType {
+  BANK_ACCOUNT
+  LOGIN
+  INSURANCE
+  OTHER
+  SECURE_NOTE
+  CREDIT_CARD
+  IDENTITY_DOCUMENT
+  CRYPTO_WALLET
+  SOFTWARE_LICENSE
+  WARRANTY
+}
+
+model VaultItem {
+  id          String   @id @default(cuid(2))
+  type        ItemType
+  title       String   
+  
+  encryptedData String 
+
+  amount        Float?   
+  frequencyDays Int?     
+  nextPaymentAt DateTime? 
+  
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  deletedAt   DateTime?
+  attachments FileAttachment[]
+
+  @@index([userId])
+  @@index([nextPaymentAt])
+  @@index([userId, type])
+}
+
+model FileAttachment {
+  id           String    @id @default(cuid(2))
+  
+  originalName String    
+  mimeType     String    
+  path  String    
+  sizeBytes    Int       
+  
+  vaultItemId  String
+  vaultItem    VaultItem  @relation(fields: [vaultItemId], references: [id], onDelete: Cascade)
+
+  createdAt    DateTime  @default(now())
+
+  @@index([vaultItemId])
+}
+
+model RefreshToken {
+  id        String   @id @default(cuid(2))
+  token     String   @unique
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userAgent String?
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([expiresAt])
+}
