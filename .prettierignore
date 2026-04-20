@@ -1,0 +1,8 @@
+node_modules
+dist
+generated
+postgres_data
+.env
+.env.*
+package-lock.json
+*.log
