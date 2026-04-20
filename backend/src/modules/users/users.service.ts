@@ -8,4 +8,8 @@ export class UsersService {
     async getProfile(userId: string) {
         return this.userRepository.findById(userId);
     }
+
+    async findAll() {
+        return this.userRepository.findAll();
+    }
 }

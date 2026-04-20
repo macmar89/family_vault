@@ -31,8 +31,10 @@ model User {
   createdAt    DateTime  @default(now())
   deletedAt    DateTime?
 
-  vaultItems    VaultItem[]
-  refreshTokens RefreshToken[]
+  vaultItems       VaultItem[]
+  refreshTokens    RefreshToken[]
+  vaultPermissions VaultPermission[]
+  auditLogs        AuditLog[]
 }
 
 enum ItemType {
@@ -59,16 +61,33 @@ model VaultItem {
   frequencyDays Int?
   nextPaymentAt DateTime?
 
-  userId      String
-  user        User             @relation(fields: [userId], references: [id])
-  createdAt   DateTime         @default(now())
-  updatedAt   DateTime         @updatedAt
-  deletedAt   DateTime?
-  attachments FileAttachment[]
+  ownerId   String
+  user      User      @relation(fields: [ownerId], references: [id])
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
 
-  @@index([userId])
+  attachments      FileAttachment[]
+  vaultPermissions VaultPermission[]
+
+  @@index([ownerId])
   @@index([nextPaymentAt])
-  @@index([userId, type])
+  @@index([ownerId, type])
+}
+
+model VaultPermission {
+  id          String  @id @default(cuid(2))
+  vaultItemId String
+  userId      String
+  canEdit     Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  vaultItem VaultItem @relation(fields: [vaultItemId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([vaultItemId, userId])
 }
 
 model FileAttachment {
@@ -98,4 +117,47 @@ model RefreshToken {
 
   @@index([userId])
   @@index([expiresAt])
+}
+
+enum AuditAction {
+  LOGIN_SUCCESS
+  LOGIN_FAILED
+  LOGOUT
+
+  VAULT_ITEM_CREATE
+  VAULT_ITEM_READ
+  VAULT_ITEM_DECRYPT
+  VAULT_ITEM_UPDATE
+  VAULT_ITEM_DELETE
+
+  PERMISSION_GRANT
+  PERMISSION_REVOKE
+}
+
+enum EntityType {
+  USER
+  AUTH
+  VAULT_ITEM
+}
+
+model AuditLog {
+  id String @id @default(cuid(2))
+
+  userId String?
+  user   User?   @relation(fields: [userId], references: [id])
+
+  action     AuditAction
+  entityType EntityType
+  entityId   String?
+
+  metadata Json?
+
+  ipAddress String? @db.VarChar(45)
+  userAgent String?
+
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([createdAt])
+  @@index([entityType, entityId])
 }
