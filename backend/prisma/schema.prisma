@@ -112,6 +112,7 @@ model RefreshToken {
   userId    String
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   userAgent String?
+  ipAddress String?  @db.VarChar(45)
   expiresAt DateTime
   createdAt DateTime @default(now())
 

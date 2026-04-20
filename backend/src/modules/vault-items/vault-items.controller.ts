@@ -1,4 +1,4 @@
-import { Controller, Post, Get, Body, Query, Param, UseGuards } from '@nestjs/common';
+import { Controller, Post, Get, Body, Query, Param, Ip, UseGuards } from '@nestjs/common';
 import { VaultItemsService } from './vault-items.service';
 import { CreateVaultItemDto } from './dto/create-vault-item.dto';
 import { FindVaultItemsDto } from './dto/find-vault-items.dto';
@@ -14,8 +14,9 @@ export class VaultItemsController {
   async create(
     @Body() createVaultItemDto: CreateVaultItemDto,
     @GetCurrentUser('userId') ownerId: string,
+    @Ip() ip: string,
   ) {
-    return this.service.create(createVaultItemDto, ownerId);
+    return this.service.create(createVaultItemDto, ownerId, ip);
   }
 
   @Get()

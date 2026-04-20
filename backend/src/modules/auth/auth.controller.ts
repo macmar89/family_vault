@@ -1,4 +1,4 @@
-import { Body, Controller, Post , Res, Req, Get, UseGuards, UnauthorizedException } from '@nestjs/common';
+import { Body, Controller, Post , Res, Req, Ip, Get, UseGuards, UnauthorizedException } from '@nestjs/common';
 import { CreateUserDto } from './dto/create-user.dto';
 import { AuthService } from './auth.service';
 import type { FastifyReply, FastifyRequest } from 'fastify';
@@ -21,11 +21,12 @@ export class AuthController {
     @Post('init-owner')
     async initOwner(
         @Body() createUserDto: CreateUserDto,
-        @Res({ passthrough: true }) res: FastifyReply,
-        @Req() req: FastifyRequest,
-    ) {
+    @Res({ passthrough: true }) res: FastifyReply,
+    @Req() req: FastifyRequest,
+    @Ip() ip: string,
+  ) {
     const userAgent = req.headers['user-agent'];
-    const tokens = await this.authService.createInitialOwner(createUserDto, userAgent);
+    const tokens = await this.authService.createInitialOwner(createUserDto, userAgent, ip);
 
     res.setCookie(COOKIE_NAMES.ACCESS_TOKEN, tokens.accessToken, COOKIE_CONFIG.ACCESS_TOKEN);
     res.setCookie(COOKIE_NAMES.REFRESH_TOKEN, tokens.refreshToken, COOKIE_CONFIG.REFRESH_TOKEN);
@@ -38,9 +39,10 @@ export class AuthController {
     @Body() loginUserDto: LoginUserDto,
     @Res({ passthrough: true }) res: FastifyReply,
     @Req() req: FastifyRequest,
+    @Ip() ip: string,
   ) {
     const userAgent = req.headers['user-agent'] as string;
-    const {user, tokens} = await this.authService.loginUser(loginUserDto, userAgent);
+    const {user, tokens} = await this.authService.loginUser(loginUserDto, userAgent, ip);
 
     res.setCookie(COOKIE_NAMES.ACCESS_TOKEN, tokens.accessToken, COOKIE_CONFIG.ACCESS_TOKEN);
     res.setCookie(COOKIE_NAMES.REFRESH_TOKEN, tokens.refreshToken, COOKIE_CONFIG.REFRESH_TOKEN);
@@ -60,6 +62,7 @@ export class AuthController {
   async refreshToken(
     @Req() req: FastifyRequest,
     @Res({ passthrough: true }) res: FastifyReply,
+    @Ip() ip: string,
   ) {
     const refreshToken = req.cookies[COOKIE_NAMES.REFRESH_TOKEN];
     const userAgent = req.headers['user-agent'] as string;
@@ -68,7 +71,7 @@ export class AuthController {
       throw new UnauthorizedException(MESSAGES.AUTH.REFRESH_TOKEN_MISSING);
     }
 
-    const { tokens, user } = await this.authService.refreshTokens(refreshToken, userAgent);
+    const { tokens, user } = await this.authService.refreshTokens(refreshToken, userAgent, ip);
 
     res.setCookie(COOKIE_NAMES.ACCESS_TOKEN, tokens.accessToken, COOKIE_CONFIG.ACCESS_TOKEN);
     res.setCookie(COOKIE_NAMES.REFRESH_TOKEN, tokens.refreshToken, COOKIE_CONFIG.REFRESH_TOKEN);

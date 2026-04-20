@@ -35,7 +35,7 @@ export class AuthService {
         return { accessToken, refreshToken };
     }
 
-    async createInitialOwner(createUserDto: CreateUserDto, userAgent?: string) {
+    async createInitialOwner(createUserDto: CreateUserDto, userAgent?: string, ipAddress?: string) {
         const userCount = await this.userRepository.countUsers();
 
         if (userCount > 0) {
@@ -51,12 +51,12 @@ export class AuthService {
         });
 
         const tokens = await this.getTokens(newUser.id, newUser.role, newUser.tokenVersion);
-        await this.refreshTokenService.createSession(newUser.id, tokens.refreshToken, userAgent);
+        await this.refreshTokenService.createSession(newUser.id, tokens.refreshToken, userAgent, ipAddress);
 
         return tokens;
     }
 
-    async loginUser(loginUserDto: LoginUserDto, userAgent: string) {
+    async loginUser(loginUserDto: LoginUserDto, userAgent: string, ipAddress: string) {
         const user = await this.userRepository.findByEmail(loginUserDto.email);
 
         if (!user) {
@@ -70,12 +70,12 @@ export class AuthService {
         }
 
         const tokens = await this.getTokens(user.id, user.role, user.tokenVersion);
-        await this.refreshTokenService.createSession(user.id, tokens.refreshToken, userAgent);
+        await this.refreshTokenService.createSession(user.id, tokens.refreshToken, userAgent, ipAddress);
 
         return {tokens, user: {id: user.id, email: user.email, name: user.name, role: user.role}};
     }
 
-    async refreshTokens(refreshTokenFromCookie: string, userAgent: string) {
+    async refreshTokens(refreshTokenFromCookie: string, userAgent: string, ipAddress: string) {
         // 1. JWT verification
         let payload: any;
         try {
@@ -106,7 +106,7 @@ export class AuthService {
 
         // 5. Rotate sessions (delete old, create new)
         await this.refreshTokenService.deleteSession(session.id);
-        await this.refreshTokenService.createSession(user.id, tokens.refreshToken, userAgent);
+        await this.refreshTokenService.createSession(user.id, tokens.refreshToken, userAgent, ipAddress);
 
         return {
             tokens,

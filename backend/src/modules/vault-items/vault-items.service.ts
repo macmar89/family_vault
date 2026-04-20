@@ -2,13 +2,12 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { VaultItemsRepository } from './vault-items.repository';
 import { CreateVaultItemDto } from './dto/create-vault-item.dto';
 import { AuditLogsService } from '../audit-logs/audit-logs.service';
-import { AuditAction, EntityType } from '@prisma/client';
+import { AuditAction, EntityType , Prisma } from '@prisma/client';
 
 import { logger } from '../../common/utils/logger';
 
 import { createPaginationMeta } from '../../common/interfaces/pagination.interface';
 import { FindVaultItemsDto } from './dto/find-vault-items.dto';
-import { Prisma } from '@prisma/client';
 
 import { MESSAGES } from '../../common/constants/messages';
 
@@ -19,7 +18,7 @@ export class VaultItemsService {
     private readonly auditLogsService: AuditLogsService,
   ) {}
 
-  async create(createVaultItemDto: CreateVaultItemDto, ownerId: string) {
+  async create(createVaultItemDto: CreateVaultItemDto, ownerId: string, ip: string) {
     const item = await this.vaultItemsRepository.create(createVaultItemDto, ownerId);
 
     this.auditLogsService.create({
@@ -27,6 +26,7 @@ export class VaultItemsService {
       action: AuditAction.VAULT_ITEM_CREATE,
       entityType: EntityType.VAULT_ITEM,
       entityId: item.id,
+      ipAddress: ip,
       metadata: {
         title: item.title,
         permissionCount: createVaultItemDto.permissions?.length ?? 0,

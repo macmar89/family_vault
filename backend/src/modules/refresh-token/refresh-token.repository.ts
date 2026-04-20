@@ -5,12 +5,13 @@ import { PrismaService } from "src/prisma/prisma.service";
 export class RefreshTokenRepository {
     constructor(private readonly prisma: PrismaService) {}
 
-    async createRefreshToken(userId: string, hashedToken: string,  expiresAt: Date, userAgent?: string,){
+    async createRefreshToken(userId: string, hashedToken: string, expiresAt: Date, userAgent?: string, ipAddress?: string) {
         await this.prisma.refreshToken.create({
             data: {
                 token: hashedToken,
                 userId,
                 userAgent,
+                ipAddress,
                 expiresAt,
             }
         });
