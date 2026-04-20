@@ -36,6 +36,7 @@ export class UsersRepository {
                 email: true,
                 name: true,
                 role: true,
+                tokenVersion: true,
             },
             where: { id },
         });

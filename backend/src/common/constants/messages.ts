@@ -9,6 +9,7 @@ export const MESSAGES = {
     REFRESH_TOKEN_EXPIRED: 'Refresh token is expired.',
     REFRESH_TOKEN_NOT_FOUND: 'Refresh token is not found.',
     REFRESHED: 'Tokens refreshed successfully.',
+    LOGGED_OUT: 'User logged out successfully.',
   },
   USER: {
     NOT_FOUND: 'User not found.',

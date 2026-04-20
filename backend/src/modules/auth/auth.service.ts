@@ -74,15 +74,57 @@ export class AuthService {
         return {tokens, user: {id: user.id, email: user.email, name: user.name, role: user.role}};
     }
 
-    async refreshTokens(refreshTokenFromCookie: string, userAgent: string): Promise<{refreshToken: string}> {
-        const hashedRefreshToken = hashToken(refreshTokenFromCookie);
-        console.log(hashedRefreshToken)
+    async refreshTokens(refreshTokenFromCookie: string, userAgent: string) {
+        // 1. JWT verification
+        let payload: any;
+        try {
+            payload = await this.jwtService.verifyAsync(refreshTokenFromCookie, {
+                secret: process.env.JWT_REFRESH_SECRET,
+            });
+        } catch (error) {
+            throw new UnauthorizedException(MESSAGES.AUTH.REFRESH_TOKEN_INVALID);
+        }
+
+        // 2. Database verification (lookup by hashed token)
+        // Adding trim() to prevent hash mismatch due to potential whitespace in cookie
+        const hashedRefreshToken = hashToken(refreshTokenFromCookie.trim());
         const session = await this.refreshTokenService.findByToken(hashedRefreshToken);
 
         if (!session) {
             throw new UnauthorizedException(MESSAGES.AUTH.REFRESH_TOKEN_NOT_FOUND);
         }
 
-        return {refreshToken: hashedRefreshToken};
+        // 3. User verification and tokenVersion check
+        const user = await this.userRepository.findById(payload.sub);
+        if (!user || user.tokenVersion !== payload.tokenVersion) {
+            throw new UnauthorizedException(MESSAGES.AUTH.REFRESH_TOKEN_INVALID);
+        }
+
+        // 4. Generate new tokens
+        const tokens = await this.getTokens(user.id, user.role, user.tokenVersion);
+
+        // 5. Rotate sessions (delete old, create new)
+        await this.refreshTokenService.deleteSession(session.id);
+        await this.refreshTokenService.createSession(user.id, tokens.refreshToken, userAgent);
+
+        return {
+            tokens,
+            user: {
+                id: user.id,
+                email: user.email,
+                name: user.name,
+                role: user.role,
+            },
+        };
+    }
+
+    async logout(refreshToken?: string) {
+        if (refreshToken) {
+            const hashedToken = hashToken(refreshToken.trim());
+            const session = await this.refreshTokenService.findByToken(hashedToken);
+            if (session) {
+                await this.refreshTokenService.deleteSession(session.id);
+            }
+        }
     }
 }

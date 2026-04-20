@@ -18,4 +18,8 @@ export class RefreshTokenService {
     async findByToken(hashedToken: string) {
         return this.refreshTokenRepository.findByToken(hashedToken);
     }
+
+    async deleteSession(id: string) {
+        return this.refreshTokenRepository.deleteRefreshToken(id);
+    }
 }
