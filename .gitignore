@@ -32,7 +32,3 @@ Thumbs.db
 # Docker
 .docker/
 
-# Prisma
-**/prisma/migrations/
-# Usually we keep migrations in git, but if they are temporary or generated, we might ignore them. 
-# In most projects, migrations SHOULD be in git. I'll leave them UN-ignored.
