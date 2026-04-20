@@ -4,6 +4,8 @@ import { CreateVaultItemDto } from './dto/create-vault-item.dto';
 import { AuditLogsService } from '../audit-logs/audit-logs.service';
 import { AuditAction, EntityType } from '@prisma/client';
 
+import { logger } from '../../common/utils/logger';
+
 @Injectable()
 export class VaultItemsService {
   constructor(
@@ -24,7 +26,7 @@ export class VaultItemsService {
         permissionCount: createVaultItemDto.permissions?.length ?? 0,
       },
     }).catch(err => {
-      console.error('Failed to create audit log:', err);
+      logger.error({ err, userId: ownerId, entityId: item.id }, 'Failed to create audit log');
     });
 
     return item;
