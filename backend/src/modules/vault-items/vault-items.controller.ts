@@ -1,6 +1,7 @@
-import { Controller, Post, Body, UseGuards } from '@nestjs/common';
+import { Controller, Post, Get, Body, Query, Param, UseGuards } from '@nestjs/common';
 import { VaultItemsService } from './vault-items.service';
 import { CreateVaultItemDto } from './dto/create-vault-item.dto';
+import { FindVaultItemsDto } from './dto/find-vault-items.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { GetCurrentUser } from '../auth/decorators/get-current-user.decorator';
 
@@ -15,5 +16,18 @@ export class VaultItemsController {
     @GetCurrentUser('userId') ownerId: string,
   ) {
     return this.service.create(createVaultItemDto, ownerId);
+  }
+
+  @Get()
+  async findAll(
+    @Query() query: FindVaultItemsDto,
+    @GetCurrentUser('userId') ownerId: string,
+  ) {
+    return this.service.findAll(ownerId, query);
+  }
+
+  @Get(':id')
+  async findOne(@Param('id') id: string, @GetCurrentUser('userId') userId: string) {
+    return this.service.findOne(id, userId);
   }
 }

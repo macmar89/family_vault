@@ -15,5 +15,8 @@ export const MESSAGES = {
   },
   USER: {
     NOT_FOUND: 'User not found.',
-  }
+  },
+  VAULT_ITEM: {
+    NOT_FOUND: 'Vault item not found or access denied.',
+  },
 };

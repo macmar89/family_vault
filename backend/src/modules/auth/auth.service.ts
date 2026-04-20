@@ -3,12 +3,12 @@ import { CreateUserDto } from './dto/create-user.dto';
 import { UserRole } from '@prisma/client';
 import { JwtService } from '@nestjs/jwt';
 import { UsersRepository } from '../users/users.repository';
-import * as argon2 from 'argon2';
+import { hashPassword, verifyPassword } from '../../common/utils/security.utils';
 import { LoginUserDto } from './dto/login-user.dto';
 import { RegisterUserDto } from './dto/register-user.dto';
 import { MESSAGES } from '../../common/constants/messages';
 import { RefreshTokenService } from '../refresh-token/refresh-token.service';
-import { hashToken } from 'src/common/utils/crypto.utils';
+import { hashToken } from '../../common/utils/crypto.utils';
 
 @Injectable()
 export class AuthService {
@@ -42,7 +42,7 @@ export class AuthService {
             throw new ForbiddenException(MESSAGES.AUTH.VAULT_LOCKED);
         }
 
-        const hashedPassword = await argon2.hash(createUserDto.password);
+        const hashedPassword = await hashPassword(createUserDto.password);
         const newUser = await this.userRepository.createInitialUser({
             email: createUserDto.email,
             password: hashedPassword,
@@ -63,7 +63,7 @@ export class AuthService {
             throw new UnauthorizedException(MESSAGES.USER.NOT_FOUND);
         }
 
-        const isPasswordValid = await argon2.verify(user.password, loginUserDto.password);
+        const isPasswordValid = await verifyPassword(user.password, loginUserDto.password);
 
         if (!isPasswordValid) {
             throw new UnauthorizedException(MESSAGES.AUTH.INVALID_CREDENTIALS);
@@ -137,7 +137,7 @@ export class AuthService {
             throw new ConflictException(MESSAGES.AUTH.EMAIL_EXISTS);
         }
 
-        const hashedPassword = await argon2.hash(password);
+        const hashedPassword = await hashPassword(password);
         
         await this.userRepository.createUser({
             email,
