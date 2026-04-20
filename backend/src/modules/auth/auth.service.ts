@@ -1,10 +1,11 @@
-import { Injectable, ForbiddenException, UnauthorizedException } from '@nestjs/common';
+import { Injectable, ForbiddenException, UnauthorizedException, ConflictException } from '@nestjs/common';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UserRole } from '@prisma/client';
 import { JwtService } from '@nestjs/jwt';
 import { UsersRepository } from '../users/users.repository';
 import * as argon2 from 'argon2';
 import { LoginUserDto } from './dto/login-user.dto';
+import { RegisterUserDto } from './dto/register-user.dto';
 import { MESSAGES } from '../../common/constants/messages';
 import { RefreshTokenService } from '../refresh-token/refresh-token.service';
 import { hashToken } from 'src/common/utils/crypto.utils';
@@ -41,7 +42,7 @@ export class AuthService {
             throw new ForbiddenException(MESSAGES.AUTH.VAULT_LOCKED);
         }
 
-        const hashedPassword = hashToken(createUserDto.password);
+        const hashedPassword = await argon2.hash(createUserDto.password);
         const newUser = await this.userRepository.createInitialUser({
             email: createUserDto.email,
             password: hashedPassword,
@@ -126,5 +127,25 @@ export class AuthService {
                 await this.refreshTokenService.deleteSession(session.id);
             }
         }
+    }
+
+    async registerUser(registerUserDto: RegisterUserDto) {
+        const {email, role, password, name} = registerUserDto 
+        const existingUser = await this.userRepository.findByEmail(email);
+
+        if (existingUser) {
+            throw new ConflictException(MESSAGES.AUTH.EMAIL_EXISTS);
+        }
+
+        const hashedPassword = await argon2.hash(password);
+        
+        await this.userRepository.createUser({
+            email,
+            password: hashedPassword,
+            name,
+            role,
+        });
+
+        return { message: MESSAGES.AUTH.USER_CREATED };
     }
 }

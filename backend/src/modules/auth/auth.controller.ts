@@ -9,6 +9,10 @@ import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { GetCurrentUser } from './decorators/get-current-user.decorator';
 import { UsersService } from '../users/users.service';
 import { COOKIE_CONFIG, COOKIE_NAMES } from '../../common/configs/auth-cookies.config';
+import { RegisterUserDto } from './dto/register-user.dto';
+import { RolesGuard } from './guards/roles.guard';
+import { Roles } from './decorators/roles.decorator';
+import { UserRole } from '@prisma/client';
 
 @Controller('auth')
 export class AuthController {
@@ -84,5 +88,12 @@ export class AuthController {
     res.clearCookie(COOKIE_NAMES.REFRESH_TOKEN, { path: '/' });
 
     return { message: MESSAGES.AUTH.LOGGED_OUT };
+  }
+
+  @Post('register')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.OWNER)
+  async register(@Body() registerUserDto: RegisterUserDto) {
+    return this.authService.registerUser(registerUserDto);
   }
 }

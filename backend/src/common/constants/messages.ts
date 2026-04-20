@@ -10,6 +10,8 @@ export const MESSAGES = {
     REFRESH_TOKEN_NOT_FOUND: 'Refresh token is not found.',
     REFRESHED: 'Tokens refreshed successfully.',
     LOGGED_OUT: 'User logged out successfully.',
+    EMAIL_EXISTS: 'Email is already taken.',
+    USER_CREATED: 'User successfully created.',
   },
   USER: {
     NOT_FOUND: 'User not found.',
