@@ -30,6 +30,7 @@ Family Vault prioritizes the security of your credentials. Instead of using lega
 ### Security Philosophy
 
 We chose **Argon2id** for several critical reasons:
+
 - **ASIC/GPU Resistance**: Unlike many other algorithms, Argon2 is designed to be memory-hard, making it exceptionally expensive to crack using specialized hardware like GPUs or ASICs.
 - **Side-Channel Protection**: The 'id' variant of Argon2 provides a balance between resistance against side-channel attacks (data-independent memory access) and brute-force attacks (data-dependent memory access).
 - **Modern Standard**: It is currently considered the gold standard by NIST and the global cryptographic community.
@@ -44,11 +45,11 @@ Through `.env` configuration, users can fine-tune the hashing complexity (Memory
 
 Depending on your host environment, we recommend the following profiles:
 
-| Profile | Target Hardware | Memory Cost (Env) | Memory (RAM) | Time Cost | Parallelism |
-| :--- | :--- | :--- | :--- | :--- | :--- |
-| **Low-End** | Raspberry Pi / IoT | `16384` | 16 MB | `2` | `1` |
-| **Standard** | Standard VPS / Cloud | `65536` | 64 MB | `3` | `4` |
-| **High-End** | Dedicated Server | `131072` | 128 MB | `4` | `4` |
+| Profile      | Target Hardware      | Memory Cost (Env) | Memory (RAM) | Time Cost | Parallelism |
+| :----------- | :------------------- | :---------------- | :----------- | :-------- | :---------- |
+| **Low-End**  | Raspberry Pi / IoT   | `16384`           | 16 MB        | `2`       | `1`         |
+| **Standard** | Standard VPS / Cloud | `65536`           | 64 MB        | `3`       | `4`         |
+| **High-End** | Dedicated Server     | `131072`          | 128 MB       | `4`       | `4`         |
 
 ### Configuration Example
 

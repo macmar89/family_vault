@@ -1,4 +1,14 @@
-import { Body, Controller, Post , Res, Req, Ip, Get, UseGuards, UnauthorizedException } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Post,
+  Res,
+  Req,
+  Ip,
+  Get,
+  UseGuards,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { CreateUserDto } from './dto/create-user.dto';
 import { AuthService } from './auth.service';
 import type { FastifyReply, FastifyRequest } from 'fastify';
@@ -8,7 +18,10 @@ import '@fastify/cookie';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { GetCurrentUser } from './decorators/get-current-user.decorator';
 import { UsersService } from '../users/users.service';
-import { COOKIE_CONFIG, COOKIE_NAMES } from '../../common/configs/auth-cookies.config';
+import {
+  COOKIE_CONFIG,
+  COOKIE_NAMES,
+} from '../../common/configs/auth-cookies.config';
 import { encryptKeyForCookie } from '../../common/utils/crypto.utils';
 import { RegisterUserDto } from './dto/register-user.dto';
 import { RolesGuard } from './guards/roles.guard';
@@ -17,29 +30,48 @@ import { UserRole } from '@prisma/client';
 
 @Controller('auth')
 export class AuthController {
-    constructor(private readonly authService: AuthService, private readonly usersService: UsersService) {}
+  constructor(
+    private readonly authService: AuthService,
+    private readonly usersService: UsersService,
+  ) {}
 
-    @Post('init-owner')
-    async initOwner(
-        @Body() createUserDto: CreateUserDto,
+  @Post('init-owner')
+  async initOwner(
+    @Body() createUserDto: CreateUserDto,
     @Res({ passthrough: true }) res: FastifyReply,
     @Req() req: FastifyRequest,
     @Ip() ip: string,
   ) {
     const userAgent = req.headers['user-agent'];
-    const tokens = await this.authService.createInitialOwner(createUserDto, userAgent, ip);
+    const tokens = await this.authService.createInitialOwner(
+      createUserDto,
+      userAgent,
+      ip,
+    );
 
-    res.setCookie(COOKIE_NAMES.ACCESS_TOKEN, tokens.accessToken, COOKIE_CONFIG.ACCESS_TOKEN);
-    res.setCookie(COOKIE_NAMES.REFRESH_TOKEN, tokens.refreshToken, COOKIE_CONFIG.REFRESH_TOKEN);
-    
+    res.setCookie(
+      COOKIE_NAMES.ACCESS_TOKEN,
+      tokens.accessToken,
+      COOKIE_CONFIG.ACCESS_TOKEN,
+    );
+    res.setCookie(
+      COOKIE_NAMES.REFRESH_TOKEN,
+      tokens.refreshToken,
+      COOKIE_CONFIG.REFRESH_TOKEN,
+    );
+
     if (tokens.derivedKey) {
       const encryptedVaultKey = encryptKeyForCookie(tokens.derivedKey);
-      res.setCookie(COOKIE_NAMES.VAULT_KEY, encryptedVaultKey, COOKIE_CONFIG.VAULT_KEY);
+      res.setCookie(
+        COOKIE_NAMES.VAULT_KEY,
+        encryptedVaultKey,
+        COOKIE_CONFIG.VAULT_KEY,
+      );
     }
 
     return { message: MESSAGES.AUTH.OWNER_CREATED };
   }
-  
+
   @Post('login')
   async loginUser(
     @Body() loginUserDto: LoginUserDto,
@@ -48,24 +80,40 @@ export class AuthController {
     @Ip() ip: string,
   ) {
     const userAgent = req.headers['user-agent'] as string;
-    const {user, tokens, derivedKey} = await this.authService.loginUser(loginUserDto, userAgent, ip);
+    const { user, tokens, derivedKey } = await this.authService.loginUser(
+      loginUserDto,
+      userAgent,
+      ip,
+    );
 
-    res.setCookie(COOKIE_NAMES.ACCESS_TOKEN, tokens.accessToken, COOKIE_CONFIG.ACCESS_TOKEN);
-    res.setCookie(COOKIE_NAMES.REFRESH_TOKEN, tokens.refreshToken, COOKIE_CONFIG.REFRESH_TOKEN);
+    res.setCookie(
+      COOKIE_NAMES.ACCESS_TOKEN,
+      tokens.accessToken,
+      COOKIE_CONFIG.ACCESS_TOKEN,
+    );
+    res.setCookie(
+      COOKIE_NAMES.REFRESH_TOKEN,
+      tokens.refreshToken,
+      COOKIE_CONFIG.REFRESH_TOKEN,
+    );
 
     if (derivedKey) {
       const encryptedVaultKey = encryptKeyForCookie(derivedKey);
-      res.setCookie(COOKIE_NAMES.VAULT_KEY, encryptedVaultKey, COOKIE_CONFIG.VAULT_KEY);
+      res.setCookie(
+        COOKIE_NAMES.VAULT_KEY,
+        encryptedVaultKey,
+        COOKIE_CONFIG.VAULT_KEY,
+      );
     }
 
     return { message: MESSAGES.AUTH.LOGGED_IN, data: user };
   }
 
   @Get('me')
-  @UseGuards(JwtAuthGuard) 
+  @UseGuards(JwtAuthGuard)
   async getProfile(@GetCurrentUser('userId') userId: string) {
     const user = await this.usersService.getProfile(userId);
-    
+
     return user;
   }
 
@@ -82,10 +130,22 @@ export class AuthController {
       throw new UnauthorizedException(MESSAGES.AUTH.REFRESH_TOKEN_MISSING);
     }
 
-    const { tokens, user } = await this.authService.refreshTokens(refreshToken, userAgent, ip);
+    const { tokens, user } = await this.authService.refreshTokens(
+      refreshToken,
+      userAgent,
+      ip,
+    );
 
-    res.setCookie(COOKIE_NAMES.ACCESS_TOKEN, tokens.accessToken, COOKIE_CONFIG.ACCESS_TOKEN);
-    res.setCookie(COOKIE_NAMES.REFRESH_TOKEN, tokens.refreshToken, COOKIE_CONFIG.REFRESH_TOKEN);
+    res.setCookie(
+      COOKIE_NAMES.ACCESS_TOKEN,
+      tokens.accessToken,
+      COOKIE_CONFIG.ACCESS_TOKEN,
+    );
+    res.setCookie(
+      COOKIE_NAMES.REFRESH_TOKEN,
+      tokens.refreshToken,
+      COOKIE_CONFIG.REFRESH_TOKEN,
+    );
 
     return { message: MESSAGES.AUTH.REFRESHED, data: user };
   }

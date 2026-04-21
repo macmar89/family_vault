@@ -1,4 +1,13 @@
-import { Controller, Post, Get, Body, Query, Param, Ip, UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  Get,
+  Body,
+  Query,
+  Param,
+  Ip,
+  UseGuards,
+} from '@nestjs/common';
 import { VaultItemsService } from './vault-items.service';
 import { CreateVaultItemDto } from './dto/create-vault-item.dto';
 import { FindVaultItemsDto } from './dto/find-vault-items.dto';
@@ -32,7 +41,7 @@ export class VaultItemsController {
 
   @Get(':id')
   async findOne(
-    @Param('id') id: string, 
+    @Param('id') id: string,
     @GetCurrentUser('userId') userId: string,
     @VaultKey() key: Buffer,
   ) {

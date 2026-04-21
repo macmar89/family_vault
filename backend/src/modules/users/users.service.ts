@@ -3,13 +3,13 @@ import { UsersRepository } from './users.repository';
 
 @Injectable()
 export class UsersService {
-    constructor(private readonly userRepository: UsersRepository) {}
+  constructor(private readonly userRepository: UsersRepository) {}
 
-    async getProfile(userId: string) {
-        return this.userRepository.findById(userId);
-    }
+  async getProfile(userId: string) {
+    return this.userRepository.findById(userId);
+  }
 
-    async findAll() {
-        return this.userRepository.findAll();
-    }
+  async findAll() {
+    return this.userRepository.findAll();
+  }
 }

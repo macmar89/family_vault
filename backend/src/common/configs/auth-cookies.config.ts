@@ -14,7 +14,7 @@ export const COOKIE_CONFIG = {
     path: '/',
     maxAge: 5 * 60,
   } satisfies CookieSerializeOptions,
-  
+
   REFRESH_TOKEN: {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',

@@ -1,10 +1,18 @@
-import { Injectable, ForbiddenException, UnauthorizedException, ConflictException } from '@nestjs/common';
+import {
+  Injectable,
+  ForbiddenException,
+  UnauthorizedException,
+  ConflictException,
+} from '@nestjs/common';
 import * as argon2 from 'argon2';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UserRole } from '@prisma/client';
 import { JwtService } from '@nestjs/jwt';
 import { UsersRepository } from '../users/users.repository';
-import { hashPassword, verifyPassword } from '../../common/utils/security.utils';
+import {
+  hashPassword,
+  verifyPassword,
+} from '../../common/utils/security.utils';
 import { LoginUserDto } from './dto/login-user.dto';
 import { RegisterUserDto } from './dto/register-user.dto';
 import { MESSAGES } from '../../common/constants/messages';
@@ -13,162 +21,207 @@ import { hashToken } from '../../common/utils/crypto.utils';
 
 @Injectable()
 export class AuthService {
-    constructor(
-        private readonly userRepository: UsersRepository,
-        private readonly refreshTokenService: RefreshTokenService,
-        private readonly jwtService: JwtService) {}
+  constructor(
+    private readonly userRepository: UsersRepository,
+    private readonly refreshTokenService: RefreshTokenService,
+    private readonly jwtService: JwtService,
+  ) {}
 
-    async getTokens(userId: string, role: UserRole, tokenVersion: number) {
-        const accessTokenPayload = { sub: userId, role, tokenVersion };
-        const refreshTokenPayload = { sub: userId, tokenVersion };
+  async getTokens(userId: string, role: UserRole, tokenVersion: number) {
+    const accessTokenPayload = { sub: userId, role, tokenVersion };
+    const refreshTokenPayload = { sub: userId, tokenVersion };
 
-        const [accessToken, refreshToken] = await Promise.all([
-        this.jwtService.signAsync(accessTokenPayload, {
-            secret: process.env.JWT_ACCESS_SECRET,
-            expiresIn: '5m',
-        }),
-        this.jwtService.signAsync(refreshTokenPayload, {
-            secret: process.env.JWT_REFRESH_SECRET,
-            expiresIn: '7d',
-        }),
-        ]);
+    const [accessToken, refreshToken] = await Promise.all([
+      this.jwtService.signAsync(accessTokenPayload, {
+        secret: process.env.JWT_ACCESS_SECRET,
+        expiresIn: '5m',
+      }),
+      this.jwtService.signAsync(refreshTokenPayload, {
+        secret: process.env.JWT_REFRESH_SECRET,
+        expiresIn: '7d',
+      }),
+    ]);
 
-        return { accessToken, refreshToken };
+    return { accessToken, refreshToken };
+  }
+
+  async createInitialOwner(
+    createUserDto: CreateUserDto,
+    userAgent?: string,
+    ipAddress?: string,
+  ) {
+    const userCount = await this.userRepository.countUsers();
+
+    if (userCount > 0) {
+      throw new ForbiddenException(MESSAGES.AUTH.VAULT_LOCKED);
     }
 
-    async createInitialOwner(createUserDto: CreateUserDto, userAgent?: string, ipAddress?: string) {
-        const userCount = await this.userRepository.countUsers();
+    const hashedPassword = await hashPassword(createUserDto.password);
+    const newUser = await this.userRepository.createInitialUser({
+      email: createUserDto.email,
+      password: hashedPassword,
+      name: createUserDto.name,
+      role: UserRole.OWNER,
+    });
 
-        if (userCount > 0) {
-            throw new ForbiddenException(MESSAGES.AUTH.VAULT_LOCKED);
-        }
+    const tokens = await this.getTokens(
+      newUser.id,
+      newUser.role,
+      newUser.tokenVersion,
+    );
+    await this.refreshTokenService.createSession(
+      newUser.id,
+      tokens.refreshToken,
+      userAgent,
+      ipAddress,
+    );
 
-        const hashedPassword = await hashPassword(createUserDto.password);
-        const newUser = await this.userRepository.createInitialUser({
-            email: createUserDto.email,
-            password: hashedPassword,
-            name: createUserDto.name,
-            role: UserRole.OWNER,
-        });
+    const derivedKey = await this.deriveSessionKey(createUserDto.password);
 
-        const tokens = await this.getTokens(newUser.id, newUser.role, newUser.tokenVersion);
-        await this.refreshTokenService.createSession(newUser.id, tokens.refreshToken, userAgent, ipAddress);
+    return { ...tokens, derivedKey };
+  }
 
-        const derivedKey = await this.deriveSessionKey(createUserDto.password);
+  async loginUser(
+    loginUserDto: LoginUserDto,
+    userAgent: string,
+    ipAddress: string,
+  ) {
+    const user = await this.userRepository.findByEmail(loginUserDto.email);
 
-        return { ...tokens, derivedKey };
+    if (!user) {
+      throw new UnauthorizedException(MESSAGES.USER.NOT_FOUND);
     }
 
-    async loginUser(loginUserDto: LoginUserDto, userAgent: string, ipAddress: string) {
-        const user = await this.userRepository.findByEmail(loginUserDto.email);
+    const isPasswordValid = await verifyPassword(
+      user.password,
+      loginUserDto.password,
+    );
 
-        if (!user) {
-            throw new UnauthorizedException(MESSAGES.USER.NOT_FOUND);
-        }
-
-        const isPasswordValid = await verifyPassword(user.password, loginUserDto.password);
-
-        if (!isPasswordValid) {
-            throw new UnauthorizedException(MESSAGES.AUTH.INVALID_CREDENTIALS);
-        }
-
-        const tokens = await this.getTokens(user.id, user.role, user.tokenVersion);
-        await this.refreshTokenService.createSession(user.id, tokens.refreshToken, userAgent, ipAddress);
-
-        const derivedKey = await this.deriveSessionKey(loginUserDto.password);
-
-        return {tokens, user: {id: user.id, email: user.email, name: user.name, role: user.role}, derivedKey};
+    if (!isPasswordValid) {
+      throw new UnauthorizedException(MESSAGES.AUTH.INVALID_CREDENTIALS);
     }
 
-    async deriveSessionKey(password: string): Promise<Buffer> {
-        // SECURITY MEANING: We use Argon2 to derive a strong 32-byte key from the user's master password.
-        // This key is never stored in the database, only in a secure cookie, ensuring Zero-Knowledge encryption.
-        // We use a separate unique salt (KDF_SALT) so the derived encryption key is completely different from the password hash in the DB.
-        if (!process.env.KDF_SALT) {
-            throw new Error('KDF_SALT environment variable is required');
-        }
-        
-        const salt = Buffer.from(process.env.KDF_SALT);
-        
-        return await argon2.hash(password, {
-            type: argon2.argon2id,
-            raw: true, // We need raw Buffer output for AES-256
-            hashLength: 32, // AES-256 requires exactly 32 bytes
-            salt,
-        });
+    const tokens = await this.getTokens(user.id, user.role, user.tokenVersion);
+    await this.refreshTokenService.createSession(
+      user.id,
+      tokens.refreshToken,
+      userAgent,
+      ipAddress,
+    );
+
+    const derivedKey = await this.deriveSessionKey(loginUserDto.password);
+
+    return {
+      tokens,
+      user: {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        role: user.role,
+      },
+      derivedKey,
+    };
+  }
+
+  async deriveSessionKey(password: string): Promise<Buffer> {
+    // SECURITY MEANING: We use Argon2 to derive a strong 32-byte key from the user's master password.
+    // This key is never stored in the database, only in a secure cookie, ensuring Zero-Knowledge encryption.
+    // We use a separate unique salt (KDF_SALT) so the derived encryption key is completely different from the password hash in the DB.
+    if (!process.env.KDF_SALT) {
+      throw new Error('KDF_SALT environment variable is required');
     }
 
-    async refreshTokens(refreshTokenFromCookie: string, userAgent: string, ipAddress: string) {
-        // 1. JWT verification
-        let payload: any;
-        try {
-            payload = await this.jwtService.verifyAsync(refreshTokenFromCookie, {
-                secret: process.env.JWT_REFRESH_SECRET,
-            });
-        } catch (error) {
-            throw new UnauthorizedException(MESSAGES.AUTH.REFRESH_TOKEN_INVALID);
-        }
+    const salt = Buffer.from(process.env.KDF_SALT);
 
-        // 2. Database verification (lookup by hashed token)
-        // Adding trim() to prevent hash mismatch due to potential whitespace in cookie
-        const hashedRefreshToken = hashToken(refreshTokenFromCookie.trim());
-        const session = await this.refreshTokenService.findByToken(hashedRefreshToken);
+    return await argon2.hash(password, {
+      type: argon2.argon2id,
+      raw: true, // We need raw Buffer output for AES-256
+      hashLength: 32, // AES-256 requires exactly 32 bytes
+      salt,
+    });
+  }
 
-        if (!session) {
-            throw new UnauthorizedException(MESSAGES.AUTH.REFRESH_TOKEN_NOT_FOUND);
-        }
+  async refreshTokens(
+    refreshTokenFromCookie: string,
+    userAgent: string,
+    ipAddress: string,
+  ) {
+    // 1. JWT verification
+    let payload: any;
+    try {
+      payload = await this.jwtService.verifyAsync(refreshTokenFromCookie, {
+        secret: process.env.JWT_REFRESH_SECRET,
+      });
+    } catch (error) {
+      throw new UnauthorizedException(MESSAGES.AUTH.REFRESH_TOKEN_INVALID);
+    }
 
-        // 3. User verification and tokenVersion check
-        const user = await this.userRepository.findById(payload.sub);
-        if (!user || user.tokenVersion !== payload.tokenVersion) {
-            throw new UnauthorizedException(MESSAGES.AUTH.REFRESH_TOKEN_INVALID);
-        }
+    // 2. Database verification (lookup by hashed token)
+    // Adding trim() to prevent hash mismatch due to potential whitespace in cookie
+    const hashedRefreshToken = hashToken(refreshTokenFromCookie.trim());
+    const session =
+      await this.refreshTokenService.findByToken(hashedRefreshToken);
 
-        // 4. Generate new tokens
-        const tokens = await this.getTokens(user.id, user.role, user.tokenVersion);
+    if (!session) {
+      throw new UnauthorizedException(MESSAGES.AUTH.REFRESH_TOKEN_NOT_FOUND);
+    }
 
-        // 5. Rotate sessions (delete old, create new)
+    // 3. User verification and tokenVersion check
+    const user = await this.userRepository.findById(payload.sub);
+    if (!user || user.tokenVersion !== payload.tokenVersion) {
+      throw new UnauthorizedException(MESSAGES.AUTH.REFRESH_TOKEN_INVALID);
+    }
+
+    // 4. Generate new tokens
+    const tokens = await this.getTokens(user.id, user.role, user.tokenVersion);
+
+    // 5. Rotate sessions (delete old, create new)
+    await this.refreshTokenService.deleteSession(session.id);
+    await this.refreshTokenService.createSession(
+      user.id,
+      tokens.refreshToken,
+      userAgent,
+      ipAddress,
+    );
+
+    return {
+      tokens,
+      user: {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        role: user.role,
+      },
+    };
+  }
+
+  async logout(refreshToken?: string) {
+    if (refreshToken) {
+      const hashedToken = hashToken(refreshToken.trim());
+      const session = await this.refreshTokenService.findByToken(hashedToken);
+      if (session) {
         await this.refreshTokenService.deleteSession(session.id);
-        await this.refreshTokenService.createSession(user.id, tokens.refreshToken, userAgent, ipAddress);
+      }
+    }
+  }
 
-        return {
-            tokens,
-            user: {
-                id: user.id,
-                email: user.email,
-                name: user.name,
-                role: user.role,
-            },
-        };
+  async registerUser(registerUserDto: RegisterUserDto) {
+    const { email, role, password, name } = registerUserDto;
+    const existingUser = await this.userRepository.findByEmail(email);
+
+    if (existingUser) {
+      throw new ConflictException(MESSAGES.AUTH.EMAIL_EXISTS);
     }
 
-    async logout(refreshToken?: string) {
-        if (refreshToken) {
-            const hashedToken = hashToken(refreshToken.trim());
-            const session = await this.refreshTokenService.findByToken(hashedToken);
-            if (session) {
-                await this.refreshTokenService.deleteSession(session.id);
-            }
-        }
-    }
+    const hashedPassword = await hashPassword(password);
 
-    async registerUser(registerUserDto: RegisterUserDto) {
-        const {email, role, password, name} = registerUserDto 
-        const existingUser = await this.userRepository.findByEmail(email);
+    await this.userRepository.createUser({
+      email,
+      password: hashedPassword,
+      name,
+      role,
+    });
 
-        if (existingUser) {
-            throw new ConflictException(MESSAGES.AUTH.EMAIL_EXISTS);
-        }
-
-        const hashedPassword = await hashPassword(password);
-        
-        await this.userRepository.createUser({
-            email,
-            password: hashedPassword,
-            name,
-            role,
-        });
-
-        return { message: MESSAGES.AUTH.USER_CREATED };
-    }
+    return { message: MESSAGES.AUTH.USER_CREATED };
+  }
 }

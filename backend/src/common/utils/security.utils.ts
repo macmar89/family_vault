@@ -16,6 +16,9 @@ export const hashPassword = async (password: string): Promise<string> => {
 /**
  * Verifies a plain text password against a hashed Argon2id password.
  */
-export const verifyPassword = async (hashed: string, plain: string): Promise<boolean> => {
+export const verifyPassword = async (
+  hashed: string,
+  plain: string,
+): Promise<boolean> => {
   return argon2.verify(hashed, plain);
 };

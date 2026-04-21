@@ -9,7 +9,7 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
     super({
       jwtFromRequest: ExtractJwt.fromExtractors([
         (request: FastifyRequest) => {
-          let token : string | null = null;
+          let token: string | null = null;
           if (request && request.cookies) {
             token = request.cookies['AccessToken'] as string;
           }

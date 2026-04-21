@@ -1,4 +1,12 @@
-import { IsEnum, IsString, IsOptional, IsNumber, IsArray, ValidateNested, IsBoolean } from 'class-validator';
+import {
+  IsEnum,
+  IsString,
+  IsOptional,
+  IsNumber,
+  IsArray,
+  ValidateNested,
+  IsBoolean,
+} from 'class-validator';
 import { Type } from 'class-transformer';
 import { ItemType } from '@prisma/client';
 
@@ -34,7 +42,7 @@ export class CreateVaultItemDto {
   nextPaymentAt?: string;
 
   @IsArray()
-  @ValidateNested({each: true })
+  @ValidateNested({ each: true })
   @Type(() => VaultItemPermissionDto)
   permissions: VaultItemPermissionDto[];
 }

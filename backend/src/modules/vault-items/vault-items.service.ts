@@ -1,9 +1,13 @@
-import { Injectable, NotFoundException, InternalServerErrorException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  InternalServerErrorException,
+} from '@nestjs/common';
 import { CryptoService } from '../../common/crypto/crypto.service';
 import { VaultItemsRepository } from './vault-items.repository';
 import { CreateVaultItemDto } from './dto/create-vault-item.dto';
 import { AuditLogsService } from '../audit-logs/audit-logs.service';
-import { AuditAction, EntityType , Prisma } from '@prisma/client';
+import { AuditAction, EntityType, Prisma } from '@prisma/client';
 
 import { logger } from '../../common/utils/logger';
 
@@ -20,30 +24,48 @@ export class VaultItemsService {
     private readonly cryptoService: CryptoService,
   ) {}
 
-  async create(createVaultItemDto: CreateVaultItemDto, ownerId: string, ip: string, key: Buffer) {
+  async create(
+    createVaultItemDto: CreateVaultItemDto,
+    ownerId: string,
+    ip: string,
+    key: Buffer,
+  ) {
     if (createVaultItemDto.encryptedData) {
       try {
-        createVaultItemDto.encryptedData = this.cryptoService.encrypt(createVaultItemDto.encryptedData, key);
+        createVaultItemDto.encryptedData = this.cryptoService.encrypt(
+          createVaultItemDto.encryptedData,
+          key,
+        );
       } catch (err) {
-        throw new InternalServerErrorException('Encryption failed during vault item creation');
+        throw new InternalServerErrorException(
+          'Encryption failed during vault item creation',
+        );
       }
     }
 
-    const item = await this.vaultItemsRepository.create(createVaultItemDto, ownerId);
+    const item = await this.vaultItemsRepository.create(
+      createVaultItemDto,
+      ownerId,
+    );
 
-    this.auditLogsService.create({
-      userId: ownerId,
-      action: AuditAction.VAULT_ITEM_CREATE,
-      entityType: EntityType.VAULT_ITEM,
-      entityId: item.id,
-      ipAddress: ip,
-      metadata: {
-        title: item.title,
-        permissionCount: createVaultItemDto.permissions?.length ?? 0,
-      },
-    }).catch(err => {
-      logger.error({ err, userId: ownerId, entityId: item.id }, 'Failed to create audit log');
-    });
+    this.auditLogsService
+      .create({
+        userId: ownerId,
+        action: AuditAction.VAULT_ITEM_CREATE,
+        entityType: EntityType.VAULT_ITEM,
+        entityId: item.id,
+        ipAddress: ip,
+        metadata: {
+          title: item.title,
+          permissionCount: createVaultItemDto.permissions?.length ?? 0,
+        },
+      })
+      .catch((err) => {
+        logger.error(
+          { err, userId: ownerId, entityId: item.id },
+          'Failed to create audit log',
+        );
+      });
 
     return item;
   }
@@ -98,7 +120,13 @@ export class VaultItemsService {
     }
 
     const orderBy: Prisma.VaultItemOrderByWithRelationInput = {};
-    const allowedSortFields = ['type', 'title', 'amount', 'frequencyDays', 'nextPaymentAt'];
+    const allowedSortFields = [
+      'type',
+      'title',
+      'amount',
+      'frequencyDays',
+      'nextPaymentAt',
+    ];
 
     if (sortBy && allowedSortFields.includes(sortBy)) {
       orderBy[sortBy as any] = order || 'asc';
@@ -130,7 +158,9 @@ export class VaultItemsService {
     // Ensure the requester genuinely exists in the vaultPermissions returned,
     // to strictly prevent unauthorized viewing if the database query engine evaluates 'some' permissively
     // or if the `requesterId` somehow bypassed the query check.
-    const hasPermission = item.vaultPermissions.some(vp => vp.userId === userId);
+    const hasPermission = item.vaultPermissions.some(
+      (vp) => vp.userId === userId,
+    );
     if (!hasPermission) {
       throw new NotFoundException(MESSAGES.VAULT_ITEM.NOT_FOUND); // Using 404 to avoid leaking existence
     }
@@ -138,7 +168,10 @@ export class VaultItemsService {
     const { vaultPermissions, ...itemData } = item;
 
     if (itemData.encryptedData) {
-      itemData.encryptedData = this.cryptoService.decrypt(itemData.encryptedData, key);
+      itemData.encryptedData = this.cryptoService.decrypt(
+        itemData.encryptedData,
+        key,
+      );
     }
 
     return {

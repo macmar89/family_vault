@@ -31,7 +31,7 @@ async function bootstrap() {
   await app.register(helmet, helmetConfig);
 
   await app.register(fastifyCookie, {
-    secret: process.env.COOKIE_SECRET, 
+    secret: process.env.COOKIE_SECRET,
   });
 
   app.enableCors({
@@ -43,7 +43,7 @@ async function bootstrap() {
 
   app.useGlobalPipes(new ValidationPipe(validationPipeConfig));
 
-  await app.listen(PORT, '0.0.0.0'); 
+  await app.listen(PORT, '0.0.0.0');
   logger.info(`Application is running on: ${await app.getUrl()}`);
 }
 bootstrap();

@@ -1,59 +1,59 @@
-import { Injectable } from "@nestjs/common";
-import { PrismaService } from "../../prisma/prisma.service";
-import { Prisma, UserRole } from "@prisma/client";
+import { Injectable } from '@nestjs/common';
+import { PrismaService } from '../../prisma/prisma.service';
+import { Prisma, UserRole } from '@prisma/client';
 
 @Injectable()
 export class UsersRepository {
-    constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService) {}
 
-    async createInitialUser(user: Prisma.UserCreateInput) {
-        const {email, password, name} = user;
-        return this.prisma.user.create({
-            data: {
-                email,
-                password,
-                name,
-                tokenVersion:1,
-                role: UserRole.OWNER,
-            },
-        });
-    }
+  async createInitialUser(user: Prisma.UserCreateInput) {
+    const { email, password, name } = user;
+    return this.prisma.user.create({
+      data: {
+        email,
+        password,
+        name,
+        tokenVersion: 1,
+        role: UserRole.OWNER,
+      },
+    });
+  }
 
-    async countUsers() {
-        return this.prisma.user.count();
-    }
+  async countUsers() {
+    return this.prisma.user.count();
+  }
 
-    async findByEmail(email: string) {
-        return this.prisma.user.findUnique({
-            where: { email },
-        });
-    }
+  async findByEmail(email: string) {
+    return this.prisma.user.findUnique({
+      where: { email },
+    });
+  }
 
-    async findById(id: string) {
-        return this.prisma.user.findUnique({
-            select: {
-                id: true,
-                email: true,
-                name: true,
-                role: true,
-                tokenVersion: true,
-            },
-            where: { id },
-        });
-    }
+  async findById(id: string) {
+    return this.prisma.user.findUnique({
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        role: true,
+        tokenVersion: true,
+      },
+      where: { id },
+    });
+  }
 
-    async createUser(data: Prisma.UserCreateInput) {
-        return this.prisma.user.create({
-            data,
-        });
-    }
+  async createUser(data: Prisma.UserCreateInput) {
+    return this.prisma.user.create({
+      data,
+    });
+  }
 
-    async findAll() {
-        return this.prisma.user.findMany({
-            select: {
-                id: true,
-                email: true,
-            },
-        });
-    }
+  async findAll() {
+    return this.prisma.user.findMany({
+      select: {
+        id: true,
+        email: true,
+      },
+    });
+  }
 }

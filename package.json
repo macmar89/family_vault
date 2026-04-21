@@ -4,7 +4,8 @@
   "description": "Family Vault - Secure shared storage",
   "private": true,
   "workspaces": [
-    "backend"
+    "backend",
+    "frontend"
   ],
   "scripts": {
     "version:patch": "npm version patch -m \"chore: bump version to %s\"",

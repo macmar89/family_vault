@@ -16,7 +16,7 @@ export class CryptoService {
     const iv = randomBytes(12);
 
     const cipher = createCipheriv(this.algorithm, key, iv);
-    
+
     let encrypted = cipher.update(data, 'utf8', 'hex');
     encrypted += cipher.final('hex');
 
@@ -33,7 +33,7 @@ export class CryptoService {
    */
   decrypt(encryptedString: string, key: Buffer): string {
     const parts = encryptedString.split(':');
-    
+
     if (parts.length !== 3) {
       throw new InternalServerErrorException('Invalid encrypted data format');
     }
@@ -54,7 +54,9 @@ export class CryptoService {
     } catch (error) {
       // SECURITY MEANING: If the `final()` call fails, it generally means the tag didn't match.
       // This indicates the data was modified, or an incorrect key was used.
-      throw new InternalServerErrorException('Failed to decrypt data: Authentication tag validation failed or incorrect key');
+      throw new InternalServerErrorException(
+        'Failed to decrypt data: Authentication tag validation failed or incorrect key',
+      );
     }
   }
 }

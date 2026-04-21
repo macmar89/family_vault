@@ -12,7 +12,8 @@ export class VaultItemsRepository {
     const { permissions, ...itemData } = data;
 
     // Filter out ownerId if it's already in permissions to avoid unique constraint error
-    const otherPermissions = permissions?.filter((p) => p.userId !== ownerId) || [];
+    const otherPermissions =
+      permissions?.filter((p) => p.userId !== ownerId) || [];
 
     return this.prisma.vaultItem.create({
       data: {
@@ -60,9 +61,9 @@ export class VaultItemsRepository {
 
   async findById(id: string, requesterId: string) {
     if (!requesterId) {
-      throw new UnauthorizedException("requesterId is required");
+      throw new UnauthorizedException('requesterId is required');
     }
-    
+
     return this.prisma.vaultItem.findFirst({
       where: {
         id,
