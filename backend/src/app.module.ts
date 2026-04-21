@@ -7,6 +7,7 @@ import { UsersModule } from './modules/users/users.module';
 import { RefreshTokenModule } from './modules/refresh-token/refresh-token.module';
 import { VaultItemsModule } from './modules/vault-items/vault-items.module';
 import { AuditLogsModule } from './modules/audit-logs/audit-logs.module';
+import { CryptoModule } from './common/crypto/crypto.module';
 
 @Module({
   imports: [
@@ -16,6 +17,7 @@ import { AuditLogsModule } from './modules/audit-logs/audit-logs.module';
     RefreshTokenModule,
     VaultItemsModule,
     AuditLogsModule,
+    CryptoModule,
   ],
   controllers: [AppController],
   providers: [AppService],

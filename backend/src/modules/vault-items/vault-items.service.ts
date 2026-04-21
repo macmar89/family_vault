@@ -1,4 +1,5 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, InternalServerErrorException } from '@nestjs/common';
+import { CryptoService } from '../../common/crypto/crypto.service';
 import { VaultItemsRepository } from './vault-items.repository';
 import { CreateVaultItemDto } from './dto/create-vault-item.dto';
 import { AuditLogsService } from '../audit-logs/audit-logs.service';
@@ -16,9 +17,18 @@ export class VaultItemsService {
   constructor(
     private readonly vaultItemsRepository: VaultItemsRepository,
     private readonly auditLogsService: AuditLogsService,
+    private readonly cryptoService: CryptoService,
   ) {}
 
-  async create(createVaultItemDto: CreateVaultItemDto, ownerId: string, ip: string) {
+  async create(createVaultItemDto: CreateVaultItemDto, ownerId: string, ip: string, key: Buffer) {
+    if (createVaultItemDto.encryptedData) {
+      try {
+        createVaultItemDto.encryptedData = this.cryptoService.encrypt(createVaultItemDto.encryptedData, key);
+      } catch (err) {
+        throw new InternalServerErrorException('Encryption failed during vault item creation');
+      }
+    }
+
     const item = await this.vaultItemsRepository.create(createVaultItemDto, ownerId);
 
     this.auditLogsService.create({
@@ -38,7 +48,7 @@ export class VaultItemsService {
     return item;
   }
 
-  async findAll(ownerId: string, query: FindVaultItemsDto) {
+  async findAll(ownerId: string, query: FindVaultItemsDto, key?: Buffer) {
     const {
       page,
       limit,
@@ -109,14 +119,27 @@ export class VaultItemsService {
     };
   }
 
-  async findOne(id: string, userId: string) {
+  async findOne(id: string, userId: string, key: Buffer) {
     const item = await this.vaultItemsRepository.findById(id, userId);
 
     if (!item) {
       throw new NotFoundException(MESSAGES.VAULT_ITEM.NOT_FOUND);
     }
 
+    // SECURITY CHECK: Defense-in-depth IDOR validation.
+    // Ensure the requester genuinely exists in the vaultPermissions returned,
+    // to strictly prevent unauthorized viewing if the database query engine evaluates 'some' permissively
+    // or if the `requesterId` somehow bypassed the query check.
+    const hasPermission = item.vaultPermissions.some(vp => vp.userId === userId);
+    if (!hasPermission) {
+      throw new NotFoundException(MESSAGES.VAULT_ITEM.NOT_FOUND); // Using 404 to avoid leaking existence
+    }
+
     const { vaultPermissions, ...itemData } = item;
+
+    if (itemData.encryptedData) {
+      itemData.encryptedData = this.cryptoService.decrypt(itemData.encryptedData, key);
+    }
 
     return {
       ...itemData,

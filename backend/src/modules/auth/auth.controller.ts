@@ -9,6 +9,7 @@ import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { GetCurrentUser } from './decorators/get-current-user.decorator';
 import { UsersService } from '../users/users.service';
 import { COOKIE_CONFIG, COOKIE_NAMES } from '../../common/configs/auth-cookies.config';
+import { encryptKeyForCookie } from '../../common/utils/crypto.utils';
 import { RegisterUserDto } from './dto/register-user.dto';
 import { RolesGuard } from './guards/roles.guard';
 import { Roles } from './decorators/roles.decorator';
@@ -30,6 +31,11 @@ export class AuthController {
 
     res.setCookie(COOKIE_NAMES.ACCESS_TOKEN, tokens.accessToken, COOKIE_CONFIG.ACCESS_TOKEN);
     res.setCookie(COOKIE_NAMES.REFRESH_TOKEN, tokens.refreshToken, COOKIE_CONFIG.REFRESH_TOKEN);
+    
+    if (tokens.derivedKey) {
+      const encryptedVaultKey = encryptKeyForCookie(tokens.derivedKey);
+      res.setCookie(COOKIE_NAMES.VAULT_KEY, encryptedVaultKey, COOKIE_CONFIG.VAULT_KEY);
+    }
 
     return { message: MESSAGES.AUTH.OWNER_CREATED };
   }
@@ -42,10 +48,15 @@ export class AuthController {
     @Ip() ip: string,
   ) {
     const userAgent = req.headers['user-agent'] as string;
-    const {user, tokens} = await this.authService.loginUser(loginUserDto, userAgent, ip);
+    const {user, tokens, derivedKey} = await this.authService.loginUser(loginUserDto, userAgent, ip);
 
     res.setCookie(COOKIE_NAMES.ACCESS_TOKEN, tokens.accessToken, COOKIE_CONFIG.ACCESS_TOKEN);
     res.setCookie(COOKIE_NAMES.REFRESH_TOKEN, tokens.refreshToken, COOKIE_CONFIG.REFRESH_TOKEN);
+
+    if (derivedKey) {
+      const encryptedVaultKey = encryptKeyForCookie(derivedKey);
+      res.setCookie(COOKIE_NAMES.VAULT_KEY, encryptedVaultKey, COOKIE_CONFIG.VAULT_KEY);
+    }
 
     return { message: MESSAGES.AUTH.LOGGED_IN, data: user };
   }
@@ -89,6 +100,7 @@ export class AuthController {
 
     res.clearCookie(COOKIE_NAMES.ACCESS_TOKEN, { path: '/' });
     res.clearCookie(COOKIE_NAMES.REFRESH_TOKEN, { path: '/' });
+    res.clearCookie(COOKIE_NAMES.VAULT_KEY, { path: '/' });
 
     return { message: MESSAGES.AUTH.LOGGED_OUT };
   }

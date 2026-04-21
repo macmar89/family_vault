@@ -1,8 +1,8 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateVaultItemDto } from './dto/create-vault-item.dto';
 
-import { ItemType, Prisma } from '@prisma/client';
+import { Prisma } from '@prisma/client';
 
 @Injectable()
 export class VaultItemsRepository {
@@ -59,6 +59,10 @@ export class VaultItemsRepository {
   }
 
   async findById(id: string, requesterId: string) {
+    if (!requesterId) {
+      throw new UnauthorizedException("requesterId is required");
+    }
+    
     return this.prisma.vaultItem.findFirst({
       where: {
         id,

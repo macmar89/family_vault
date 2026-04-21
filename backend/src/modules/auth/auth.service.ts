@@ -1,4 +1,5 @@
 import { Injectable, ForbiddenException, UnauthorizedException, ConflictException } from '@nestjs/common';
+import * as argon2 from 'argon2';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UserRole } from '@prisma/client';
 import { JwtService } from '@nestjs/jwt';
@@ -53,7 +54,9 @@ export class AuthService {
         const tokens = await this.getTokens(newUser.id, newUser.role, newUser.tokenVersion);
         await this.refreshTokenService.createSession(newUser.id, tokens.refreshToken, userAgent, ipAddress);
 
-        return tokens;
+        const derivedKey = await this.deriveSessionKey(createUserDto.password);
+
+        return { ...tokens, derivedKey };
     }
 
     async loginUser(loginUserDto: LoginUserDto, userAgent: string, ipAddress: string) {
@@ -72,7 +75,27 @@ export class AuthService {
         const tokens = await this.getTokens(user.id, user.role, user.tokenVersion);
         await this.refreshTokenService.createSession(user.id, tokens.refreshToken, userAgent, ipAddress);
 
-        return {tokens, user: {id: user.id, email: user.email, name: user.name, role: user.role}};
+        const derivedKey = await this.deriveSessionKey(loginUserDto.password);
+
+        return {tokens, user: {id: user.id, email: user.email, name: user.name, role: user.role}, derivedKey};
+    }
+
+    async deriveSessionKey(password: string): Promise<Buffer> {
+        // SECURITY MEANING: We use Argon2 to derive a strong 32-byte key from the user's master password.
+        // This key is never stored in the database, only in a secure cookie, ensuring Zero-Knowledge encryption.
+        // We use a separate unique salt (KDF_SALT) so the derived encryption key is completely different from the password hash in the DB.
+        if (!process.env.KDF_SALT) {
+            throw new Error('KDF_SALT environment variable is required');
+        }
+        
+        const salt = Buffer.from(process.env.KDF_SALT);
+        
+        return await argon2.hash(password, {
+            type: argon2.argon2id,
+            raw: true, // We need raw Buffer output for AES-256
+            hashLength: 32, // AES-256 requires exactly 32 bytes
+            salt,
+        });
     }
 
     async refreshTokens(refreshTokenFromCookie: string, userAgent: string, ipAddress: string) {
